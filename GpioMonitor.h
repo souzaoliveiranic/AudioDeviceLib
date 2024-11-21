@@ -4,6 +4,7 @@
  *  Created on: 29 de out de 2024
  *      Author: fmce520
  */
+#ifdef USING_GPIOD
 
 #ifndef UTIL_GPIOMONITOR_H_
 #define UTIL_GPIOMONITOR_H_
@@ -104,6 +105,7 @@ public:
 
 };
 
+#endif
 #endif
 
 #endif /* UTIL_GPIOMONITOR_H_ */

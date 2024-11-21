@@ -63,6 +63,8 @@ public:
 	virtual void run();
 };
 
+#ifdef USING_GPIOD
+
 class PttGpioThread : public Runnable
 {
 private:
@@ -77,6 +79,7 @@ public:
 	virtual void start(size_t threadSize, int threadPriority);
 	virtual void run();
 };
+#endif
 
 class AlertsThread : public Runnable
 {
@@ -144,7 +147,9 @@ public:
 	MicThread micThread;
 	SpeakerThread speakerThread;
 	PttInputEventThread pttInputEventThread;
+#ifdef USING_GPIOD
 	PttGpioThread pttGpioThread;
+#endif
 	AlertsThread alertsThread;
 
 	/** VAD **/
@@ -223,13 +228,30 @@ public:
 	AudioDeviceLib();
 	virtual ~AudioDeviceLib();
 
+	/****** Metodos Obrigatorios para inicialização da biblioteca ******/
+
+	/**
+	 * @brief Cria as threads utilizadas pelo componente
+	 * @return -2: dispositivo nao configurado
+	 * @return -1: erro na inicializacao do dispositivo
+	 */
+	int start(size_t micThreadSize = 1024, int micThreadPriority = 10,
+			size_t speakerThreadSize = 1024, int speakerThreadPriority = 11,
+			size_t pttThreadSize = 1024, int pttThreadPriority = 12,
+			size_t alertsThreadSize = 1024, int alertsThreadPriority = 11);
+
+	/**
+	 * @brief libera a execucao das threads apos a sua criacao e inicializacao
+	 */
+	int running(bool newRunningProperty);
+
 	/****** Metodos de Criacao/Start/Callback/Push ******/
 
 	/**
 	 * @brief sobrescreva o metodo abaixo para utilizar as amostras gravadas pelo microfone
 	 * este metodo eh utilizado como callback assim que os pacotes sao gravados pelo microfone
 	 */
-	virtual void micStreamPushPacket(std::vector<signed short> &payload) = 0;
+	virtual void micStreamPushPacket(std::vector<signed short> &payload);
 
 	/**
 	 * @brief sobrescreva o metodo abaixo para utilizar o evento de pressinamento de algum ptt
@@ -253,21 +275,6 @@ public:
 	virtual void startTone(unsigned short durationInMs, unsigned short frequencyInHz);
 
 	/**
-	 * @brief Cria as threads utilizadas pelo componente
-	 * @return -2: dispositivo nao configurado
-	 * @return -1: erro na inicializacao do dispositivo
-	 */
-	int start(size_t micThreadSize, int micThreadPriority,
-			size_t speakerThreadSize, int speakerThreadPriority,
-			size_t pttThreadSize, int pttThreadPriority,
-			size_t alertsThreadSize, int alertsThreadPriority);
-
-	/**
-	 * @brief libera a execucao das threads apos a sua criacao e inicializacao
-	 */
-	int running(bool newRunningProperty);
-
-	/**
 	 * @brief inicio envio de pacotes de audio a partir do buffer gravada pelo microfone
 	 * utilizando indiretamente callback micStreamPushPacket
 	 */
@@ -278,16 +285,23 @@ public:
 
 	/**
 	 * @brief Configura o dispositivo de reproducao (speaker)
+	 * Deve ser passado como "<card>,<device>"
+	 * Para verificar seu dispositivo use o comando: aplay -l
 	 */
 	int setSpeakerDevice(std::string newSpeakerDevice);
 
 	/**
 	 * @brief Configura o dispositivo de gravacao (microfone)
+	 * Deve ser passado como "<card>,<device>"
+	 * Para verificar seu dispositivo use o comando: arecord -l
 	 */
 	int setMicDevice(std::string newMicDevice);
 
 	/**
 	 * @brief Utilize estah funcao para configurar multiplos input events a serem monitorados como PTTs
+	 * Utiliza um std::map entre o nome do input device e o código da tecla de ptt
+	 * Ex: newInputEventFileAndKeyCodeMap["/dev/input/event2"] = {97};
+	 * Os codigos das teclas podem ser encontrados em: https://github.com/torvalds/linux/blob/master/include/uapi/linux/input-event-codes.h
 	 */
 	int configInputEventPTTs(std::map<std::string, std::vector<int>> newInputEventFileAndKeyCodeMap);
 
